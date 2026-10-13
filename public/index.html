@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f6f5f1">
+    <meta name="description" content="Plan a balanced week of student life and AWS Builder Center outreach.">
+    <title>Outreach Week Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Outreach Week Planner home">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span>FIELDNOTES<span class="brand-period">.</span></span>
+      </a>
+      <div class="topbar-note"><span class="live-dot"></span> YOUR WEEK, WITH ROOM TO BREATHE</div>
+      <button class="calendar-connect" id="calendar-connect" type="button">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.2" y="4.5" width="13.6" height="12.2" rx="2"></rect><path d="M6.5 2.8v3.3m7-3.3v3.3M3.5 8h13"></path></svg>
+        <span id="calendar-label">Connect calendar</span>
+      </button>
+    </header>
+
+    <main class="page-shell">
+      <section class="intro">
+        <div class="eyebrow"><span>THE STUDENT AMBASSADOR TOOLKIT</span><span class="eyebrow-line"></span><span>NO. 01</span></div>
+        <div class="intro-grid">
+          <div>
+            <h1>Make room for<br>what <span>matters.</span></h1>
+            <p class="intro-copy">A thoughtful week starts with a clear list. Bring your deadlines, campus work, and everything in between — we'll help you find a rhythm that feels doable.</p>
+          </div>
+          <aside class="quote-card">
+            <span class="quote-spark" aria-hidden="true">✳</span>
+            <p>Good weeks aren't<br>crammed. They're <em>considered.</em></p>
+            <span class="quote-credit">A GENTLER WAY TO GET IT DONE</span>
+          </aside>
+        </div>
+      </section>
+
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+      <section class="workspace" aria-label="Weekly planning workspace">
+        <section class="tasks-panel" aria-labelledby="tasks-title">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">FIRST, THE LAY OF THE LAND</span>
+              <h2 id="tasks-title">Your to-do list<span class="heading-period">.</span></h2>
+            </div>
+            <span class="task-count" id="task-count">00 TASKS</span>
+          </div>
+
+          <form id="task-form" class="task-form">
+            <label class="field field-name">
+              <span>WHAT'S ON YOUR PLATE?</span>
+              <input id="task-name" name="name" type="text" maxlength="160" placeholder="e.g. Plan this week's Builder Center post" required>
+            </label>
+            <div class="field-row">
+              <label class="field">
+                <span>DUE DATE</span>
+                <input id="task-due" name="dueDate" type="date" required>
+              </label>
+              <label class="field">
+                <span>TIME NEEDED</span>
+                <select id="task-time" name="timeEstimate">
+                  <option>15 min</option>
+                  <option selected>30 min</option>
+                  <option>1 hour</option>
+                  <option>2 hours</option>
+                  <option>Half day</option>
+                </select>
+              </label>
+            </div>
+            <div class="field-row">
+              <label class="field">
+                <span>TYPE OF TASK</span>
+                <select id="task-category" name="category">
+                  <option>Outreach/quota</option>
+                  <option>Coursework</option>
+                  <option>Personal</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>PRIORITY</span>
+                <select id="task-priority" name="priority">
+                  <option>Let AI decide</option>
+                  <option>High</option>
+                  <option>Medium</option>
+                  <option>Low</option>
+                </select>
+              </label>
+            </div>
+            <button class="add-task" type="submit"><span aria-hidden="true">+</span> Add to the list</button>
+          </form>
+
+          <div class="task-list-heading"><span>COMING UP</span><span>REMOVE ANYTIME</span></div>
+          <ul class="task-list" id="task-list" aria-label="Tasks to plan"></ul>
+          <div class="list-empty" id="list-empty">
+            <span class="empty-scribble" aria-hidden="true">↳</span>
+            <span>Your list starts here.<br>Add a few things you want to make space for.</span>
+          </div>
+          <button class="generate-button" id="generate-button" type="button" disabled>
+            <span class="generate-icon" aria-hidden="true">✳</span>
+            <span id="generate-label">Build my week</span>
+            <span class="button-arrow" aria-hidden="true">↗</span>
+          </button>
+          <p class="privacy-note"><span aria-hidden="true">✳</span> Your task list stays right here in your browser.</p>
+        </section>
+
+        <section class="plan-panel" aria-labelledby="plan-title">
+          <div class="plan-heading">
+            <div>
+              <span class="section-kicker">A LITTLE STRUCTURE, A LOT OF GRACE</span>
+              <h2 id="plan-title">The week ahead<span class="heading-period">.</span></h2>
+            </div>
+            <span class="week-label" id="week-label">YOUR WEEKLY PLAN</span>
+          </div>
+          <div class="plan-empty" id="plan-empty">
+            <div class="empty-art" aria-hidden="true">
+              <div class="empty-art-sun"></div>
+              <div class="empty-art-hill empty-art-hill-back"></div>
+              <div class="empty-art-hill empty-art-hill-front"></div>
+              <div class="empty-art-path"></div>
+            </div>
+            <h3>A fresh week is full of possibility.</h3>
+            <p>Your plan will take shape here, one considered step at a time.</p>
+            <span class="empty-caption">YOUR SPACE TO FIND A RHYTHM</span>
+          </div>
+          <div class="loading-state" id="loading-state" hidden>
+            <div class="loader-orbit" aria-hidden="true"><span></span></div>
+            <h3>Thinking through your week<span class="heading-period">…</span></h3>
+            <p>Finding a rhythm for all the things that matter.</p>
+          </div>
+          <div class="plan-results" id="plan-results" hidden>
+            <div class="summary-card">
+              <span class="summary-spark" aria-hidden="true">✳</span>
+              <div><span class="summary-label">A NOTE FOR YOUR WEEK</span><p id="plan-summary"></p></div>
+            </div>
+            <div class="board" id="board" aria-label="Weekly plan, Monday through Sunday"></div>
+            <div class="board-legend">
+              <span><i class="legend-dot suggested-dot"></i> YOUR PLAN</span>
+              <span><i class="legend-dot event-dot"></i> EXISTING EVENT</span>
+              <span><i class="legend-dot accepted-dot"></i> CONFIRMED</span>
+            </div>
+            <p class="board-note"><span>GOOD TO REMEMBER</span> This is a starting point, not a set of rules. Adjust it to fit the week you're actually having.</p>
+          </div>
+        </section>
+      </section>
+      <footer class="page-footer"><span>FIELDNOTES <span class="footer-period">✳</span> A LITTLE MORE ROOM FOR WHAT MATTERS</span><span>MADE FOR THE WEEKS THAT ASK A LOT</span></footer>
+    </main>
+  </body>
+</html>
