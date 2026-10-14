@@ -11,6 +11,28 @@ A small, local-first weekly planner for student ambassadors. Task lists and plan
 
 The app uses the Gemini API's OpenAI-compatible Chat Completions endpoint with `gemini-3.8-flash` by default. Change `GEMINI_MODEL` in `.env` to select another compatible Gemini model. The API key is read only by the server and is never sent to the browser. The Gemini free tier has usage limits, and Google may use free-tier data to improve its products; avoid sending sensitive information.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    User([User])
+    Agent["Planner agent<br/>(browser + local server)"]
+    Context[("Grounded knowledge<br/>planning-context.md")]
+    Calendar["Tool<br/>Google Calendar API<br/>(read-only)"]
+    Gemini["Gemini planning model"]
+    Plan["Weekly plan + existing events"]
+
+    User -->|"Tasks and today's date"| Agent
+    Agent -->|"Read planning guidance"| Context
+    Context -->|"Planning context"| Agent
+    Agent -->|"Fetch next 7 days' events<br/>(when connected)"| Calendar
+    Calendar -->|"Existing events"| Agent
+    Agent -->|"Tasks + context + events"| Gemini
+    Gemini -->|"Structured plan"| Agent
+    Agent -->|"Display results"| Plan
+    Plan --> User
+```
+
 ## Personal planning context
 
 Edit [`planning-context.md`](./planning-context.md) in this folder to give the planner background it should use each week. Add concise, lasting details under the headings, such as your responsibilities, usual availability, prioritization rules, workload boundaries, outreach or course requirements, and the tone you prefer for the weekly summary. Remove headings that do not apply.
