@@ -140,6 +140,12 @@
               <div><span class="summary-label">A NOTE FOR YOUR WEEK</span><p id="plan-summary"></p></div>
             </div>
             <div class="board" id="board" aria-label="Weekly plan, Monday through Sunday"></div>
+            <div class="publish-row" id="publish-row" hidden>
+              <button class="publish-button" id="publish-button" type="button">
+                <span aria-hidden="true">📅</span>
+                <span id="publish-label">Save to Calendar</span>
+              </button>
+            </div>
             <div class="board-legend">
               <span><i class="legend-dot suggested-dot"></i> YOUR PLAN</span>
               <span><i class="legend-dot event-dot"></i> EXISTING EVENT</span>
@@ -151,5 +157,20 @@
       </section>
       <footer class="page-footer"><span>FIELDNOTES <span class="footer-period">✳</span> A LITTLE MORE ROOM FOR WHAT MATTERS</span><span>MADE FOR THE WEEKS THAT ASK A LOT</span></footer>
     </main>
+
+    <!-- Publish to Calendar modal -->
+    <div id="publish-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3 id="modal-title">Review &amp; Publish to Calendar</h3>
+          <button id="modal-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div id="modal-body" class="modal-body"></div>
+        <div class="modal-footer">
+          <button id="modal-publish" type="button" class="modal-publish-btn">Publish to Calendar</button>
+          <button id="modal-cancel" type="button" class="modal-cancel-btn">Cancel</button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

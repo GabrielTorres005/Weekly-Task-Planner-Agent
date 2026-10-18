@@ -128,6 +128,156 @@ function validatePlan(value) {
   return { summary: value.summary.trim(), plan };
 }
 
+/**
+ * Convert a TIME_ESTIMATES string to minutes.
+ * @param {string} estimate
+ * @returns {number}
+ */
+function estimateDurationMinutes(estimate) {
+  const map = {
+    "15 min": 15,
+    "30 min": 30,
+    "1 hour": 60,
+    "2 hours": 120,
+    "Half day": 240,
+  };
+  return map[estimate] ?? 60;
+}
+
+/**
+ * Given a weekday name and a reference Date, return the ISO date string (YYYY-MM-DD)
+ * for the matching day in the next 7 calendar days starting from the reference date (inclusive).
+ * @param {string} dayName - e.g. "Monday"
+ * @param {Date} referenceDate
+ * @returns {string|null}
+ */
+function resolveWeekDate(dayName, referenceDate) {
+  const dayIndex = DAYS.indexOf(dayName); // 0=Mon, 6=Sun
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(referenceDate);
+    d.setUTCDate(d.getUTCDate() + i);
+    const jsDay = d.getUTCDay(); // 0=Sun,1=Mon,...6=Sat
+    const ourIndex = (jsDay + 6) % 7; // 0=Mon,6=Sun
+    if (ourIndex === dayIndex) return d.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+/**
+ * Detect scheduling conflicts between existing calendar events and proposed tasks,
+ * and among proposed tasks themselves.
+ * @param {Array<{id:string,title:string,start:string,end:string,all_day:boolean}>} events
+ * @param {Array<{date:string,startTime:string,durationMinutes:number}>} tasks
+ * @param {string} timeZone - IANA timezone string (informational; dates already parsed as local ISO)
+ * @returns {string[]} array of human-readable conflict descriptions
+ */
+function detectConflicts(events, tasks, timeZone) {
+  const conflicts = [];
+
+  // Build intervals for proposed tasks
+  const taskIntervals = tasks.map((task) => {
+    const startISO = `${task.date}T${task.startTime}:00`;
+    const start = new Date(startISO);
+    const end = new Date(start.getTime() + task.durationMinutes * 60 * 1000);
+    return { start, end, label: task.task || `task at ${task.startTime} on ${task.date}` };
+  });
+
+  // Build intervals for existing timed events (skip all-day)
+  const eventIntervals = events
+    .filter((ev) => !ev.all_day && ev.start && ev.end)
+    .map((ev) => ({
+      start: new Date(ev.start),
+      end: new Date(ev.end),
+      label: ev.title || "Existing event",
+    }));
+
+  function overlaps(a, b) {
+    return a.start < b.end && b.start < a.end;
+  }
+
+  // Each proposed task vs each existing event
+  for (const task of taskIntervals) {
+    for (const ev of eventIntervals) {
+      if (overlaps(task, ev)) {
+        conflicts.push(
+          `"${task.label}" conflicts with existing event "${ev.label}" (${ev.start.toISOString()} – ${ev.end.toISOString()})`,
+        );
+      }
+    }
+  }
+
+  // Each pair of proposed tasks among themselves
+  for (let i = 0; i < taskIntervals.length; i++) {
+    for (let j = i + 1; j < taskIntervals.length; j++) {
+      if (overlaps(taskIntervals[i], taskIntervals[j])) {
+        conflicts.push(
+          `"${taskIntervals[i].label}" conflicts with "${taskIntervals[j].label}"`,
+        );
+      }
+    }
+  }
+
+  return conflicts;
+}
+
+/**
+ * Validate the incoming body for POST /api/calendar/publish.
+ * @param {object} body
+ * @param {string} today - YYYY-MM-DD
+ * @returns {string|null} null on success, error string on failure
+ */
+function validatePublishPayload(body, today) {
+  if (!isValidDate(today)) return "Invalid today date.";
+
+  if (!isObject(body)) return "Request body must be a JSON object.";
+
+  const { tasks, timeZone } = body;
+
+  if (!Array.isArray(tasks) || tasks.length < 1 || tasks.length > 50) {
+    return "tasks must be an array of 1–50 items.";
+  }
+
+  for (const [i, task] of tasks.entries()) {
+    const idx = i + 1;
+    if (!isObject(task)) return `Task ${idx}: must be an object.`;
+    if (!Number.isInteger(task.planIndex) || task.planIndex < 0)
+      return `Task ${idx}: planIndex must be a non-negative integer.`;
+    if (typeof task.task !== "string" || task.task.length < 1 || task.task.length > 160)
+      return `Task ${idx}: task must be a string of 1–160 characters.`;
+    if (!DAYS.includes(task.day))
+      return `Task ${idx}: day must be one of ${DAYS.join(", ")}.`;
+    if (!TIME_ESTIMATES.includes(task.time_estimate))
+      return `Task ${idx}: time_estimate must be one of ${TIME_ESTIMATES.join(", ")}.`;
+    if (!isValidDate(task.date))
+      return `Task ${idx}: date must be a valid ISO date (YYYY-MM-DD).`;
+    if (typeof task.startTime !== "string" || !/^\d{2}:\d{2}$/.test(task.startTime)) {
+      return `Task ${idx}: startTime must match HH:MM.`;
+    }
+    const [hh, mm] = task.startTime.split(":").map(Number);
+    if (hh < 0 || hh > 23 || mm < 0 || mm > 59)
+      return `Task ${idx}: startTime is not a valid time.`;
+    if (!Number.isInteger(task.durationMinutes) || task.durationMinutes < 1 || task.durationMinutes > 1440)
+      return `Task ${idx}: durationMinutes must be an integer between 1 and 1440.`;
+    if (
+      typeof task.clientEventId !== "string" ||
+      task.clientEventId.length < 1 ||
+      task.clientEventId.length > 128 ||
+      !/^[a-zA-Z0-9_-]+$/.test(task.clientEventId)
+    ) {
+      return `Task ${idx}: clientEventId must be 1–128 alphanumeric/dash/underscore characters.`;
+    }
+  }
+
+  if (typeof timeZone !== "string") return "timeZone must be a string.";
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone }).resolvedOptions();
+  } catch {
+    return `timeZone "${timeZone}" is not a valid IANA timezone.`;
+  }
+
+  return null;
+}
+
 function getCalendarEvents(session) {
   if (!session.calendar?.accessToken) return Promise.resolve([]);
   if (session.calendar.expiresAt <= Date.now()) {
@@ -174,6 +324,7 @@ function getCalendarEvents(session) {
 
     const data = await response.json();
     return (data.items || []).map((event) => ({
+      id: event.id || "",
       title: event.summary || "Untitled event",
       start: event.start?.dateTime || event.start?.date || "",
       end: event.end?.dateTime || event.end?.date || "",
@@ -313,7 +464,8 @@ app.get("/auth/google", (req, res) => {
   authorizationUrl.searchParams.set("client_id", process.env.GOOGLE_CLIENT_ID);
   authorizationUrl.searchParams.set("redirect_uri", redirectUri);
   authorizationUrl.searchParams.set("response_type", "code");
-  authorizationUrl.searchParams.set("scope", "https://www.googleapis.com/auth/calendar.readonly");
+  // Narrowest scope that allows event creation (upgraded from calendar.readonly)
+  authorizationUrl.searchParams.set("scope", "https://www.googleapis.com/auth/calendar.events");
   authorizationUrl.searchParams.set("state", state);
   authorizationUrl.searchParams.set("access_type", "online");
   res.redirect(authorizationUrl.toString());
@@ -390,10 +542,151 @@ app.post("/api/calendar/disconnect", async (req, res) => {
   return res.json({ connected: false });
 });
 
+/**
+ * POST /api/calendar/publish
+ * Publish accepted plan items as Google Calendar events.
+ * Requires a valid calendar session. Detects duplicates via extendedProperties.
+ * Returns partial success: each result has { planIndex, googleEventId, skipped?, error? }.
+ */
+app.post("/api/calendar/publish", async (req, res) => {
+  const session = getSession(req, res);
+
+  // 1. Require valid calendar access token
+  if (!session.calendar?.accessToken) {
+    return res.status(401).json({
+      error: "Google Calendar is not connected. Please connect your calendar first.",
+    });
+  }
+  if (session.calendar.expiresAt <= Date.now()) {
+    delete session.calendar;
+    return res.status(401).json({
+      error: "Your Google Calendar connection has expired. Please reconnect your calendar.",
+    });
+  }
+
+  // 2. Validate payload
+  const today = req.body?.today;
+  const validationError = validatePublishPayload(req.body, today);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
+  }
+
+  const { tasks, timeZone } = req.body;
+
+  // 3. Fetch fresh calendar events for conflict re-check
+  let freshEvents;
+  try {
+    freshEvents = await getCalendarEvents(session);
+  } catch (err) {
+    return res.status(502).json({ error: err.message });
+  }
+
+  // 4. Build task intervals for conflict detection
+  const taskIntervals = tasks.map((task) => ({
+    date: task.date,
+    startTime: task.startTime,
+    durationMinutes: task.durationMinutes,
+    task: task.task,
+  }));
+
+  // 5. Detect conflicts
+  const conflicts = detectConflicts(freshEvents, taskIntervals, timeZone);
+  if (conflicts.length > 0) {
+    return res.status(409).json({ error: "Conflicts detected", conflicts });
+  }
+
+  const accessToken = session.calendar.accessToken;
+  const results = [];
+
+  // 6 & 7. For each task: check for existing planner event (dedup), then create if new
+  for (const task of tasks) {
+    const startISO = `${task.date}T${task.startTime}:00`;
+    const endDate = new Date(new Date(startISO).getTime() + task.durationMinutes * 60 * 1000);
+    const endISO = endDate.toISOString().replace(".000Z", "").replace(/\.\d{3}Z$/, "");
+
+    try {
+      // Check for existing event with this plannerEventId
+      const dupUrl = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events");
+      dupUrl.searchParams.set("privateExtendedProperty", `plannerEventId=${task.clientEventId}`);
+      dupUrl.searchParams.set("maxResults", "1");
+
+      const dupResponse = await fetch(dupUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (dupResponse.ok) {
+        const dupData = await dupResponse.json();
+        if (Array.isArray(dupData.items) && dupData.items.length > 0) {
+          results.push({
+            planIndex: task.planIndex,
+            googleEventId: dupData.items[0].id,
+            skipped: true,
+          });
+          continue;
+        }
+      }
+
+      // Create new event
+      const createResponse = await fetch(
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            summary: task.task,
+            start: { dateTime: startISO, timeZone },
+            end: { dateTime: endISO, timeZone },
+            extendedProperties: {
+              private: {
+                plannerEventId: task.clientEventId,
+                plannerSource: "outreach-week-planner",
+              },
+            },
+          }),
+        },
+      );
+
+      if (!createResponse.ok) {
+        let detail = "";
+        try {
+          const errBody = await createResponse.json();
+          detail = errBody?.error?.message || JSON.stringify(errBody);
+        } catch { /* ignore */ }
+        results.push({
+          planIndex: task.planIndex,
+          error: `Failed to create event (HTTP ${createResponse.status}): ${detail}`,
+        });
+        continue;
+      }
+
+      const created = await createResponse.json();
+      results.push({ planIndex: task.planIndex, googleEventId: created.id });
+    } catch (err) {
+      results.push({ planIndex: task.planIndex, error: err.message });
+    }
+  }
+
+  // 8. Return results (partial success is fine)
+  return res.json({ results });
+});
+
 if (require.main === module) {
   app.listen(port, () => {
     console.log(`Outreach Week Planner is running at http://localhost:${port}`);
   });
 }
 
-module.exports = { app, makePrompt, readPlanningContext, validatePlan, validateTasks };
+module.exports = {
+  app,
+  makePrompt,
+  readPlanningContext,
+  validatePlan,
+  validateTasks,
+  estimateDurationMinutes,
+  resolveWeekDate,
+  detectConflicts,
+  validatePublishPayload,
+};
