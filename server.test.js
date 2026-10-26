@@ -66,9 +66,28 @@ test("includes due dates, workload balancing, and existing events in the prompt"
   assert.match(prompt, /2026-09-27/);
   assert.match(prompt, /2026-10-01/);
   assert.match(prompt, /Do not stack everything on one day/);
+  assert.match(prompt, /Use only tasks the user submitted/);
+  assert.match(prompt, /2-3 concise sentences/);
   assert.match(prompt, /Lecture/);
   assert.match(prompt, /Keep Friday afternoons free/);
   assert.match(prompt, /weekly summary/);
+});
+
+test("prompt does not imply planning context or calendar data were available", () => {
+  const prompt = makePrompt(
+    [{ name: "Finish assignment", dueDate: "2026-10-01", timeEstimate: "1 hour", category: "Coursework", priority: "High" }],
+    "2026-09-27",
+    [],
+  );
+  assert.match(prompt, /Google Calendar events were not available/);
+  assert.match(prompt, /Do not claim to have read user-specific planning preferences/);
+});
+
+test("prompt distinguishes a connected calendar with no supplied events", () => {
+  const prompt = makePrompt([], "2026-09-27", [], "", true);
+  assert.match(prompt, /The user connected Google Calendar/);
+  assert.match(prompt, /Imported Google Calendar events/);
+  assert.match(prompt, /Do not claim to have read user-specific planning preferences/);
 });
 
 test("generates a plan through the Gemini API", async () => {
@@ -129,6 +148,7 @@ test("generates a plan through the Gemini API", async () => {
     assert.equal(apiRequest.body.model, "gemini-3.8-flash");
     assert.equal(apiRequest.body.response_format.type, "json_object");
     assert.match(apiRequest.body.messages[1].content, /Contents of planning-context\.md/);
+    assert.match(apiRequest.body.messages[1].content, /Google Calendar events were not available/);
     assert.equal(response.status, 200);
     assert.equal(response.body.summary, "A balanced week is ahead.");
     assert.equal(response.body.plan[0].status, "pending");

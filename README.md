@@ -39,6 +39,12 @@ Edit [`planning-context.md`](./planning-context.md) in this folder to give the p
 
 The server reads this Markdown file whenever you build a week, so changes take effect on the next plan without a restart. Keep it at or under 12 KB. Its contents are sent to Gemini along with your tasks and any connected calendar events when generating a plan; do not include sensitive information.
 
+## Weekly planning skill
+
+The project includes a Copilot skill at [`.github/skills/weekly-outreach-summary-plan/SKILL.md`](./.github/skills/weekly-outreach-summary-plan/SKILL.md). Copilot can load it when asked to create a weekly outreach plan or summary using submitted tasks, this planning context, or available Google Calendar events.
+
+The running planner uses Gemini rather than loading Copilot skill files. To keep its behavior aligned, the server includes the same task-grounding, workload, missing-information, and concise-summary guidance in the planning prompt. The app continues to return its existing short summary, structured plan, and separate calendar events.
+
 ## Optional: Google Calendar integration
 
 1. In Google Cloud Console, enable the Google Calendar API and create an OAuth client for a web application.

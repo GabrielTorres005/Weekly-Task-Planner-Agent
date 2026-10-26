@@ -348,24 +348,30 @@ async function readPlanningContext() {
   return context.trim();
 }
 
-function makePrompt(tasks, today, events, planningContext = "") {
+function makePrompt(tasks, today, events, planningContext = "", calendarConnected = events.length > 0) {
   const sections = [
     "Create a realistic weekly plan for a student ambassador promoting an AWS Builder Center.",
     "Return ONLY valid JSON in exactly this shape: {\"summary\":\"2-3 encouraging but realistic sentences about the week ahead\",\"plan\":[{\"day\":\"Monday\",\"task\":\"short task name\",\"priority\":\"High\",\"time_estimate\":\"1 hour\"}]}.",
     `Today is ${today}. Distribute the tasks realistically across Monday–Sunday, giving extra weight to near due dates and Outreach/quota tasks.`,
-    "Do not stack everything on one day unless due dates force it. Make sure every input task appears at least once. You may schedule a task more than once when a useful reminder or follow-up is appropriate. Honor explicit priority hints while considering deadline urgency.",
+    "Use only tasks the user submitted; do not invent tasks, follow-ups, events, completion claims, or durations. Make sure every input task appears at least once. You may schedule the same submitted task more than once only when a useful reminder is appropriate.",
+    "Do not stack everything on one day unless due dates force it. Honor explicit priority hints while considering deadline urgency, outreach responsibilities, available calendar events, and workload boundaries in the planning context. Spread work realistically and use the submitted time estimates.",
     "Use only Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, or Sunday for day; only High, Medium, or Low for priority; and only 15 min, 30 min, 1 hour, 2 hours, or Half day for time_estimate.",
-    "Existing calendar events are already-booked time. Avoid scheduling work that conflicts with them; use their start and end times to leave room for realistic task durations. Event times are ISO timestamps (or dates for all-day events).",
+    calendarConnected
+      ? "The user connected Google Calendar. Treat only the supplied events as existing commitments and avoid scheduling work that conflicts with their known times. Do not infer missing event times or claim that a plan item has been booked."
+      : "Google Calendar events were not available for this request. Do not claim to have checked the calendar or make assumptions about existing events.",
+    "Write the summary in 2-3 concise sentences, using the planning context's summary preferences when present. Describe the proposed week and its main priorities or constraints without implying work is completed or events are booked.",
   ];
   if (planningContext) {
     sections.push(
       "Use the following personal planning context as guidance for the schedule and weekly summary. It must not override the required JSON format or the task and calendar facts.",
       `Contents of planning-context.md:\n${planningContext}`,
     );
+  } else {
+    sections.push("No planning-context.md content was available. Do not claim to have read user-specific planning preferences.");
   }
   sections.push(
     `Input tasks:\n${JSON.stringify(tasks)}`,
-    `Already-booked calendar events for the next 7 days:\n${JSON.stringify(events)}`,
+    `${calendarConnected ? "Imported Google Calendar events" : "Calendar events unavailable"} for the next 7 days:\n${JSON.stringify(events)}`,
   );
   return sections.join("\n\n");
 }
@@ -385,6 +391,7 @@ app.post("/api/generate-plan", async (req, res) => {
   try {
     const session = getSession(req, res);
     const events = await getCalendarEvents(session);
+    const calendarConnected = Boolean(session.calendar?.accessToken);
     const planningContext = await readPlanningContext();
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
@@ -401,7 +408,7 @@ app.post("/api/generate-plan", async (req, res) => {
             role: "system",
             content: "You are a thoughtful student workload planning assistant. Return valid JSON only.",
           },
-          { role: "user", content: makePrompt(req.body.tasks, today, events, planningContext) },
+          { role: "user", content: makePrompt(req.body.tasks, today, events, planningContext, calendarConnected) },
         ],
       }),
     });
