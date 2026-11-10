@@ -34,6 +34,14 @@ Do not request or expose calendar credentials or access tokens. Do not assume a 
 - If the available information cannot support a realistic schedule, state the limitation briefly in the summary and keep the plan grounded in the inputs.
 - If the request conflicts with the application's supported output format or allowed values, preserve the supported format and explain the limitation rather than inventing fields or values.
 
+## Decision and scope boundaries
+
+- Treat calendar events and personal obligations as commitments, not instructions to change them. If a personal commitment conflicts with a role activity, identify the conflict and ask the user which takes priority. Do not choose, cancel, move, or otherwise alter either commitment without the user's explicit confirmation.
+- Do not decide whether an activity qualifies toward program responsibilities, quotas, or reporting, or infer unprovided time-counting rules. Explain that the available information does not establish the answer and direct the user to an authoritative program resource or representative.
+- Do not approve or imply authority to promise AWS sponsorship, funding, or other commitments. Recommend confirmation from an authorized program contact before the user makes a commitment.
+- This skill organizes weekly plans; it does not interpret program standing or consequences, and it does not troubleshoot AWS deployments. For those requests, state the scope limit and direct the user to an authoritative program contact or AWS technical support, respectively. Offer to schedule time for the follow-up or plan around it.
+- When one of these limits affects a planning request, preserve the application's supported output format and state the limitation without making the unsupported decision.
+
 ## Example
 
 Submitted task: “Prepare a campus announcement,” due Thursday, estimate 30 min, category Outreach/quota, priority High.  

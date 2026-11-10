@@ -43,7 +43,7 @@ The server reads this Markdown file whenever you build a week, so changes take e
 
 The project includes a Copilot skill at [`.github/skills/weekly-outreach-summary-plan/SKILL.md`](./.github/skills/weekly-outreach-summary-plan/SKILL.md). Copilot can load it when asked to create a weekly outreach plan or summary using submitted tasks, this planning context, or available Google Calendar events.
 
-The running planner uses Gemini rather than loading Copilot skill files. To keep its behavior aligned, the server includes the same task-grounding, workload, missing-information, and concise-summary guidance in the planning prompt. The app continues to return its existing short summary, structured plan, and separate calendar events.
+The running planner uses Gemini rather than loading Copilot skill files. To keep its behavior aligned, the server includes the same task-grounding, workload, missing-information, decision-boundary, and concise-summary guidance in the planning prompt. It does not choose which conflicting commitment to change, determine program qualification or standing, authorize sponsorship promises, or troubleshoot AWS technical issues. The app continues to return its existing short summary, structured plan, and separate calendar events.
 
 ## Optional: Google Calendar integration
 

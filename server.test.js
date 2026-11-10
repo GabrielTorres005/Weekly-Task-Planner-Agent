@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
 const {
+  SYSTEM_PROMPT,
   makePrompt,
   validatePlan,
   validateTasks,
@@ -73,6 +74,23 @@ test("includes due dates, workload balancing, and existing events in the prompt"
   assert.match(prompt, /weekly summary/);
 });
 
+test("prompt preserves commitment, program-policy, and technical-support boundaries", () => {
+  const prompt = makePrompt(
+    [{ name: "Prepare campus event", dueDate: "2026-10-01", category: "Outreach/quota" }],
+    "2026-09-27",
+    [{ title: "Personal appointment", start: "2026-09-28T10:00:00-05:00", end: "2026-09-28T11:00:00-05:00", all_day: false }],
+    "Serve as a Campus Leader.",
+  );
+  assert.match(prompt, /ask which takes priority/);
+  assert.match(prompt, /without explicit confirmation/);
+  assert.match(prompt, /Do not infer whether an activity qualifies/);
+  assert.match(prompt, /authoritative program resource or authorized representative/);
+  assert.match(prompt, /Do not approve or imply authority to promise AWS sponsorship/);
+  assert.match(prompt, /does not interpret program standing or consequences/);
+  assert.match(prompt, /does not diagnose AWS technical problems/);
+  assert.match(prompt, /AWS technical support/);
+});
+
 test("prompt does not imply planning context or calendar data were available", () => {
   const prompt = makePrompt(
     [{ name: "Finish assignment", dueDate: "2026-10-01", timeEstimate: "1 hour", category: "Coursework", priority: "High" }],
@@ -88,6 +106,22 @@ test("prompt distinguishes a connected calendar with no supplied events", () => 
   assert.match(prompt, /The user connected Google Calendar/);
   assert.match(prompt, /Imported Google Calendar events/);
   assert.match(prompt, /Do not claim to have read user-specific planning preferences/);
+});
+
+test("SYSTEM_PROMPT includes all 5 labeled sections and required guardrails", () => {
+  assert.match(SYSTEM_PROMPT, /\[IDENTITY\]/);
+  assert.match(SYSTEM_PROMPT, /AWS Student Builder Campus Leaders/);
+  assert.match(SYSTEM_PROMPT, /\[KNOWLEDGE\]/);
+  assert.match(SYSTEM_PROMPT, /\[RESPONSE STYLE\]/);
+  assert.match(SYSTEM_PROMPT, /\[GUARDRAILS\]/);
+  assert.match(SYSTEM_PROMPT, /\[ESCALATION\]/);
+  assert.match(SYSTEM_PROMPT, /Do not unilaterally choose which conflicting commitment to move or cancel/);
+  assert.match(SYSTEM_PROMPT, /Do not infer or certify whether an activity officially qualifies/);
+  assert.match(SYSTEM_PROMPT, /Do not approve, promise, or imply authority to grant AWS sponsorships/);
+  assert.match(SYSTEM_PROMPT, /Do not interpret or evaluate official program standing/);
+  assert.match(SYSTEM_PROMPT, /Do not diagnose, troubleshoot, or debug AWS technical problems/);
+  assert.match(SYSTEM_PROMPT, /AWS Program Lead, Campus Ambassador Manager/);
+  assert.match(SYSTEM_PROMPT, /AWS Technical Support/);
 });
 
 test("generates a plan through the Gemini API", async () => {
@@ -147,6 +181,12 @@ test("generates a plan through the Gemini API", async () => {
     assert.equal(apiRequest.options.headers.Authorization, "Bearer test-gemini-key");
     assert.equal(apiRequest.body.model, "gemini-3.8-flash");
     assert.equal(apiRequest.body.response_format.type, "json_object");
+    assert.equal(apiRequest.body.messages[0].role, "system");
+    assert.match(apiRequest.body.messages[0].content, /\[IDENTITY\]/);
+    assert.match(apiRequest.body.messages[0].content, /\[KNOWLEDGE\]/);
+    assert.match(apiRequest.body.messages[0].content, /\[RESPONSE STYLE\]/);
+    assert.match(apiRequest.body.messages[0].content, /\[GUARDRAILS\]/);
+    assert.match(apiRequest.body.messages[0].content, /\[ESCALATION\]/);
     assert.match(apiRequest.body.messages[1].content, /Contents of planning-context\.md/);
     assert.match(apiRequest.body.messages[1].content, /Google Calendar events were not available/);
     assert.equal(response.status, 200);
